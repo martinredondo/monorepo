@@ -69,7 +69,7 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm i
+        run: npm ci
 
       - name: Run tests for affected package
         run: vitest -F ${{ matrix.package }} test
