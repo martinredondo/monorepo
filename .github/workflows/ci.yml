@@ -29,33 +29,28 @@ jobs:
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
               - '.github/workflows/**'
-
       - name: Set changed projects matrix
         id: set
+        shell: bash
         run: |
-          projects_json='['
-          first=true
-          if [[ "${{ steps.filter.outputs.root }}" == 'true' ]]; then
-            # Root changes => run all
-            projects_json='["app-a","app-b"]'
-            first=false
-          else
-            if [[ "${{ steps.filter.outputs.app-a }}" == 'true' ]]; then
-              projects_json='["app-a"'
-              first=false
-            fi
-            if [[ "${{ steps.filter.outputs.app-b }}" == 'true' ]]; then
-              if $first; then
-                projects_json='["app-b"'
-                first=false
-              else
-                projects_json="$projects_json,""app-b""
-              fi
-            fi
-            projects_json="$projects_json]"
-          fi
-          echo "projects=$projects_json" >> $GITHUB_OUTPUT
+          declare -a projects=()
 
+          if [[ "${{ steps.filter.outputs.root }}" == 'true' ]]; then
+            projects=( "app-a" "app-b" )
+          else
+            [[ "${{ steps.filter.outputs.app-a }}" == 'true' ]] && projects+=( "app-a" )
+            [[ "${{ steps.filter.outputs.app-b }}" == 'true' ]] && projects+=( "app-b" )
+          fi
+
+          # Build JSON safely
+          json='['
+          for i in "${!projects[@]}"; do
+            [[ $i -gt 0 ]] && json+=','
+            json+="\"${projects[$i]}\""
+          done
+          json+=']'
+
+          echo "projects=$json" >> "$GITHUB_OUTPUT"
   test:
     name: Test ${{ matrix.package }}
     needs: changes
