@@ -78,7 +78,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm i
 
       - name: Run tests for affected package
-        run: pnpm -F ${{ matrix.package }} test
+        run: vitest -F ${{ matrix.package }} test
