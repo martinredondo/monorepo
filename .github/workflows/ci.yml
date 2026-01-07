@@ -63,14 +63,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      # Install pnpm first so setup-node can use pnpm caching
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
-          run_install: false
-
-
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
