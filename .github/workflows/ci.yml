@@ -1,0 +1,87 @@
+name: CI (affected packages only)
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  changes:
+    name: Detect changed packages
+    runs-on: ubuntu-latest
+    outputs:
+      projects: ${{ steps.set.outputs.projects }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            app-a:
+              - 'packages/app-a/**'
+            app-b:
+              - 'packages/app-b/**'
+            root:
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/workflows/**'
+
+      - name: Set changed projects matrix
+        id: set
+        run: |
+          projects_json='['
+          first=true
+          if [[ "${{ steps.filter.outputs.root }}" == 'true' ]]; then
+            # Root changes => run all
+            projects_json='["app-a","app-b"]'
+            first=false
+          else
+            if [[ "${{ steps.filter.outputs.app-a }}" == 'true' ]]; then
+              projects_json='["app-a"'
+              first=false
+            fi
+            if [[ "${{ steps.filter.outputs.app-b }}" == 'true' ]]; then
+              if $first; then
+                projects_json='["app-b"'
+                first=false
+              else
+                projects_json="$projects_json,""app-b""
+              fi
+            fi
+            projects_json="$projects_json]"
+          fi
+          echo "projects=$projects_json" >> $GITHUB_OUTPUT
+
+  test:
+    name: Test ${{ matrix.package }}
+    needs: changes
+    if: ${{ needs.changes.outputs.projects != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.changes.outputs.projects) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests for affected package
+        run: pnpm -F ${{ matrix.package }} test
